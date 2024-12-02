@@ -1,70 +1,60 @@
-const fs = require('fs');
+// const fs = require('fs');
+const fs = require('node:fs/promises');
 const { getVideoDurationInSeconds } = require('get-video-duration')
 
 let totalDuration = 0;
-const mediaFolder = 'C:/media/BackupCamcorder';
+const mediaFolder = 'C:/dev/OwnProjects/FolderGenerator/demo_media';
 
 
 getFilesFromFolder(mediaFolder);
 
 
-function getFilesFromFolder(path) {
-    fs.readdir(path, (err, files) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
+async function getFilesFromFolder(sourcePath) {
+    const readdirResult = await fs.readdir(sourcePath);
 
-        files.forEach(file => {
-            //Exclude folders
-            if (fs.lstatSync(`${path}/${file}`).isDirectory()) return;
+    readdirResult.forEach(async (file) => {
+        //Exclude folders
+        if ((await (fs.lstat(`${sourcePath}/${file}`))).isDirectory()) return;
 
-            getFileDataFromPath(`${path}/${file}`, file);
-            // getTotalVideoMinutes(`${path}/${file}`);
+        await getFileDataFromPath(`${sourcePath}/${file}`, file);
+        // getTotalVideoMinutes(`${path}/${file}`);
 
-        })
-    });
+    })
 }
 
-function getFileDataFromPath(path, filename) {
-    fs.stat(path, async (err, stats) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-        // Example output: 2024-11-27T19:45:36.000Z
-        // console.log(stats.mtime);
-        // Convert the timestamp to a date of the format: Day-Month-Year in 24 hour format timezone Amsterdam
-        const date = new Date(stats.mtime).toLocaleString('nl-NL', {
-            timeZone: 'Europe/Amsterdam',
-            hour12: false
-        });
-        console.log(`${filename} date: ${date}`);
-        await createFoldersOfDates(date.split(',')[0]);
-    });
+async function getFileDataFromPath(filePath, fileName) {
+    const statResult = await fs.stat(filePath);
+
+    const date = new Date(statResult.mtime).toLocaleString('nl-NL', {
+        timeZone: 'Europe/Amsterdam',
+        hour12: false
+    }).split(',')[0];
+    // date: 2-11-2024, 09:49:18
+
+    await createFoldersOfDates(date);
+    await copyFileToFolder(fileName, filePath, date);
 }
 
 async function createFoldersOfDates(date) {
     // Create folders based on the date
     // Example: 2024-11-27T19:45:36.000Z
     // Create folder: 27-11-2024
+    try {
+        await fs.mkdir(`FG_Folder/${date}`, { recursive: true })
+        console.log(`createFoldersOfDates: ${date}`);
 
-    fs.mkdir(date, { recursive: true }, async (err, result) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-        console.log(`Folder ${date} created`);
-    }, async (result) => {
-        if (result) {
-            console.error(result);
-            return;
-        }
-    });
+    } catch (error) {
+        console.log(`createFoldersOfDatesError: ${date}`);
+    }
 }
 
-async function copyFileToFolder(path, filename) {
-
+async function copyFileToFolder(fileName, filePath, date) {
+    try {
+        await fs.copyFile(filePath, `FG_Folder/${date}/${fileName}`)
+        console.log(`copyFileToFolder: ${fileName}`);
+    } catch (error) {
+        console.log(`copyFileToFolderError: ${fileName}`);
+    }
 }
 
 
